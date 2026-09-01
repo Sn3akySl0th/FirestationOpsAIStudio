@@ -52,10 +52,17 @@ import com.example.firestationops.ui.sync.SyncConflictViewModel
 import com.example.firestationops.domain.sync.SyncCoordinator
 import com.example.firestationops.domain.sync.NoOpSyncCoordinator
 import com.example.firestationops.domain.bootstrap.NoOpDepartmentCatalogBootstrap
+import com.example.firestationops.domain.model.DepartmentOperationsStore
+import com.example.firestationops.ui.navigation.AppNavDestination
+import com.example.firestationops.ui.navigation.MainAppContainer
+import com.example.firestationops.ui.navigation.rememberAppNavigationState
+import com.example.firestationops.ui.personnel.PersonnelScreen
+import com.example.firestationops.ui.equipment.EquipmentScreen
+import com.example.firestationops.ui.shift.ShiftScreen
 import com.example.firestationops.domain.model.Role
 
 sealed class Screen {
-    object Dashboard : Screen()
+    object Main : Screen()
     data class Inspection(val apparatusId: String) : Screen()
     object DeficiencyList : Screen()
     data class DeficiencyDetail(val deficiencyId: String) : Screen()
@@ -99,7 +106,12 @@ fun App(
         }
     }
     
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Dashboard) }
+    var currentScreen by remember { mutableStateOf<Screen>(Screen.Main) }
+    val navigationState = rememberAppNavigationState(AppNavDestination.DASHBOARD)
+    val departmentOpsStore = remember(userState) {
+        val deptId = (userState as? UserState.Authenticated)?.member?.departmentId ?: "default"
+        DepartmentOperationsStore(deptId)
+    }
 
     MaterialTheme {
         Surface(
@@ -109,7 +121,7 @@ fun App(
             when (val state = userState) {
                 is UserState.Authenticated -> {
                     when (val screen = currentScreen) {
-                        Screen.Dashboard -> {
+                        Screen.Main -> {
                             val dashboardViewModel = remember(state.member.departmentId) {
                                 DashboardViewModel(
                                     departmentId = state.member.departmentId,
@@ -122,10 +134,16 @@ fun App(
                                     syncCoordinator = syncCoordinator
                                 )
                             }
-                            MainContent(
+                            val firefighters by departmentOpsStore.getFirefighters().collectAsState(emptyList())
+                            val equipmentList by departmentOpsStore.getEquipment().collectAsState(emptyList())
+                            val shiftsList by departmentOpsStore.getShifts().collectAsState(emptyList())
+                            val availabilitiesMap by departmentOpsStore.getAvailabilities().collectAsState(emptyMap())
+
+                            MainAppContainer(
                                 member = state.member,
                                 onLogout = loginViewModel::logout,
-                                content = { 
+                                navigationState = navigationState,
+                                dashboardContent = {
                                     DashboardScreen(
                                         viewModel = dashboardViewModel,
                                         onApparatusClick = { id -> currentScreen = Screen.Inspection(id) },
@@ -138,6 +156,35 @@ fun App(
                                             onRequestBackgroundSync(state.member.departmentId)
                                         },
                                         onOpenSyncConflictsClick = { currentScreen = Screen.SyncConflicts }
+                                    )
+                                },
+                                personnelContent = {
+                                    PersonnelScreen(
+                                        firefighters = firefighters,
+                                        onStatusChange = { ffId, newStatus ->
+                                            departmentOpsStore.updateFirefighterStatus(ffId, newStatus)
+                                        }
+                                    )
+                                },
+                                equipmentContent = {
+                                    EquipmentScreen(
+                                        equipmentList = equipmentList,
+                                        onStatusChange = { eqId, newStatus ->
+                                            departmentOpsStore.updateEquipmentStatus(eqId, newStatus)
+                                        }
+                                    )
+                                },
+                                shiftsContent = {
+                                    ShiftScreen(
+                                        shifts = shiftsList,
+                                        firefighters = firefighters,
+                                        availabilities = availabilitiesMap,
+                                        departmentId = state.member.departmentId,
+                                        onSaveShift = { shift -> departmentOpsStore.saveShift(shift) },
+                                        onUpdateShiftStatus = { sId, newStatus -> departmentOpsStore.updateShiftStatus(sId, newStatus) },
+                                        onAssignFirefighter = { sId, ffId -> departmentOpsStore.assignFirefighterToShift(sId, ffId) },
+                                        onRemoveFirefighter = { sId, ffId -> departmentOpsStore.removeFirefighterFromShift(sId, ffId) },
+                                        onUpdateAvailability = { avail -> departmentOpsStore.updateFirefighterAvailability(avail) }
                                     )
                                 }
                             )
@@ -157,7 +204,7 @@ fun App(
                             }
                             InspectionScreen(
                                 viewModel = inspectionViewModel,
-                                onBack = { currentScreen = Screen.Dashboard }
+                                onBack = { currentScreen = Screen.Main }
                             )
                         }
                         Screen.DeficiencyList -> {
@@ -170,7 +217,7 @@ fun App(
                             }
                             DeficiencyListScreen(
                                 viewModel = deficiencyListViewModel,
-                                onBack = { currentScreen = Screen.Dashboard },
+                                onBack = { currentScreen = Screen.Main },
                                 onDeficiencyClick = { id -> currentScreen = Screen.DeficiencyDetail(id) }
                             )
                         }
@@ -198,7 +245,7 @@ fun App(
                             }
                             IncidentListScreen(
                                 viewModel = incidentListViewModel,
-                                onBack = { currentScreen = Screen.Dashboard },
+                                onBack = { currentScreen = Screen.Main },
                                 onIncidentClick = { id -> currentScreen = Screen.IncidentDetail(id) },
                                 onCreateIncident = { currentScreen = Screen.IncidentDetail(null) }
                             )
@@ -230,7 +277,7 @@ fun App(
                             }
                             DepartmentSettingsScreen(
                                 viewModel = departmentSettingsViewModel,
-                                onBack = { currentScreen = Screen.Dashboard },
+                                onBack = { currentScreen = Screen.Main },
                                 onOpenCatalogSettings = {
                                     if (state.member.hasRole(Role.ADMIN)) {
                                         currentScreen = Screen.CatalogSettings
@@ -268,7 +315,7 @@ fun App(
                             }
                             SyncConflictScreen(
                                 viewModel = syncConflictViewModel,
-                                onBack = { currentScreen = Screen.Dashboard }
+                                onBack = { currentScreen = Screen.Main }
                             )
                         }
                     }
