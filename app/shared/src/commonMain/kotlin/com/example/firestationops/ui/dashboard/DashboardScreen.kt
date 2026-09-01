@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.example.firestationops.domain.dashboard.StationStatusAnalytics
 import com.example.firestationops.domain.model.Apparatus
 import com.example.firestationops.domain.model.ApparatusInspectionStatus
 import com.example.firestationops.domain.model.ApparatusStatus
@@ -27,15 +28,22 @@ import com.example.firestationops.domain.sync.PendingSyncQueueBuilder
 import com.example.firestationops.domain.sync.PendingSyncQueueItem
 import com.example.firestationops.domain.sync.SyncQueueState
 import com.example.firestationops.domain.sync.SyncRunnerState
+import com.example.firestationops.model.Equipment
+import com.example.firestationops.model.Firefighter
+import com.example.firestationops.model.Station as CoreStation
 import com.example.firestationops.ui.deficiency.DeficiencyItem
 import com.example.firestationops.ui.deficiency.DeficiencyWithApparatus
 
 @Composable
 fun DashboardScreen(
     viewModel: DashboardViewModel,
+    firefighters: List<Firefighter> = emptyList(),
+    equipmentList: List<Equipment> = emptyList(),
+    stationsList: List<CoreStation> = emptyList(),
     onApparatusClick: (String) -> Unit,
     onOpenDeficienciesClick: () -> Unit,
     onDeficiencyClick: (String) -> Unit = {},
+    onEquipmentClick: (String) -> Unit = {},
     onOpenIncidentsClick: () -> Unit = {},
     showDepartmentSettings: Boolean = false,
     onOpenDepartmentSettings: () -> Unit = {},
@@ -62,6 +70,9 @@ fun DashboardScreen(
         is DashboardUiState.Success -> {
             DashboardContent(
                 state = state,
+                firefighters = firefighters,
+                equipmentList = equipmentList,
+                stationsList = stationsList,
                 syncState = syncState,
                 syncMessage = syncMessage,
                 lastSyncResult = lastSyncResult,
@@ -69,6 +80,7 @@ fun DashboardScreen(
                 onApparatusClick = onApparatusClick,
                 onOpenDeficienciesClick = onOpenDeficienciesClick,
                 onDeficiencyClick = onDeficiencyClick,
+                onEquipmentClick = onEquipmentClick,
                 onOpenIncidentsClick = onOpenIncidentsClick,
                 showDepartmentSettings = showDepartmentSettings,
                 onOpenDepartmentSettings = onOpenDepartmentSettings,
@@ -88,6 +100,9 @@ fun DashboardScreen(
 @Composable
 private fun DashboardContent(
     state: DashboardUiState.Success,
+    firefighters: List<Firefighter>,
+    equipmentList: List<Equipment>,
+    stationsList: List<CoreStation>,
     syncState: SyncRunnerState,
     syncMessage: String?,
     lastSyncResult: com.example.firestationops.domain.sync.SyncResult?,
@@ -95,6 +110,7 @@ private fun DashboardContent(
     onApparatusClick: (String) -> Unit,
     onOpenDeficienciesClick: () -> Unit,
     onDeficiencyClick: (String) -> Unit,
+    onEquipmentClick: (String) -> Unit,
     onOpenIncidentsClick: () -> Unit,
     showDepartmentSettings: Boolean,
     onOpenDepartmentSettings: () -> Unit,
@@ -105,6 +121,43 @@ private fun DashboardContent(
     onRetryAllFailedAttachments: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
+    var selectedStationId by remember { mutableStateOf<String?>(null) }
+
+    val effectiveStations = remember(stationsList, state.stations) {
+        if (stationsList.isNotEmpty()) {
+            stationsList
+        } else {
+            state.stations.map { s ->
+                CoreStation(
+                    id = s.station.id,
+                    departmentId = s.station.departmentId,
+                    name = s.station.name,
+                    address = s.station.address
+                )
+            }
+        }
+    }
+
+    val stationSummary = remember(
+        selectedStationId,
+        effectiveStations,
+        firefighters,
+        equipmentList,
+        state.stations,
+        state.topDeficiencies,
+        state.overdueInspections
+    ) {
+        val allApparatus = state.stations.flatMap { it.apparatus.map { a -> a.apparatus } }
+        StationStatusAnalytics.computeSummary(
+            selectedStationId = selectedStationId,
+            stations = effectiveStations,
+            firefighters = firefighters,
+            equipmentList = equipmentList,
+            apparatusList = allApparatus,
+            openDeficiencies = state.topDeficiencies.map { it.deficiency },
+            overdueInspections = state.overdueInspections
+        )
+    }
 
     LaunchedEffect(syncMessage) {
         syncMessage?.let { message ->
@@ -129,28 +182,33 @@ private fun DashboardContent(
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1.2f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     dashboardMainItems(
-                        state,
-                        syncState,
-                        lastSyncResult,
-                        cloudSyncEnabled,
-                        onApparatusClick,
-                        onOpenDeficienciesClick,
-                        onDeficiencyClick,
-                        onOpenIncidentsClick,
-                        showDepartmentSettings,
-                        onOpenDepartmentSettings,
-                        onSyncNowClick,
-                        onOpenSyncConflictsClick,
-                        onRetryAttachmentUpload,
-                        onRetryAllFailedAttachments
+                        state = state,
+                        stationSummary = stationSummary,
+                        stations = effectiveStations,
+                        selectedStationId = selectedStationId,
+                        onStationSelect = { selectedStationId = it },
+                        syncState = syncState,
+                        lastSyncResult = lastSyncResult,
+                        cloudSyncEnabled = cloudSyncEnabled,
+                        onApparatusClick = onApparatusClick,
+                        onOpenDeficienciesClick = onOpenDeficienciesClick,
+                        onDeficiencyClick = onDeficiencyClick,
+                        onEquipmentClick = onEquipmentClick,
+                        onOpenIncidentsClick = onOpenIncidentsClick,
+                        showDepartmentSettings = showDepartmentSettings,
+                        onOpenDepartmentSettings = onOpenDepartmentSettings,
+                        onSyncNowClick = onSyncNowClick,
+                        onOpenSyncConflictsClick = onOpenSyncConflictsClick,
+                        onRetryAttachmentUpload = onRetryAttachmentUpload,
+                        onRetryAllFailedAttachments = onRetryAllFailedAttachments
                     )
                 }
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(0.8f),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item { StationsSection(state.stations, onApparatusClick) }
@@ -163,20 +221,25 @@ private fun DashboardContent(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 dashboardMainItems(
-                    state,
-                    syncState,
-                    lastSyncResult,
-                    cloudSyncEnabled,
-                    onApparatusClick,
-                    onOpenDeficienciesClick,
-                    onDeficiencyClick,
-                    onOpenIncidentsClick,
-                    showDepartmentSettings,
-                    onOpenDepartmentSettings,
-                    onSyncNowClick,
-                    onOpenSyncConflictsClick,
-                    onRetryAttachmentUpload,
-                    onRetryAllFailedAttachments
+                    state = state,
+                    stationSummary = stationSummary,
+                    stations = effectiveStations,
+                    selectedStationId = selectedStationId,
+                    onStationSelect = { selectedStationId = it },
+                    syncState = syncState,
+                    lastSyncResult = lastSyncResult,
+                    cloudSyncEnabled = cloudSyncEnabled,
+                    onApparatusClick = onApparatusClick,
+                    onOpenDeficienciesClick = onOpenDeficienciesClick,
+                    onDeficiencyClick = onDeficiencyClick,
+                    onEquipmentClick = onEquipmentClick,
+                    onOpenIncidentsClick = onOpenIncidentsClick,
+                    showDepartmentSettings = showDepartmentSettings,
+                    onOpenDepartmentSettings = onOpenDepartmentSettings,
+                    onSyncNowClick = onSyncNowClick,
+                    onOpenSyncConflictsClick = onOpenSyncConflictsClick,
+                    onRetryAttachmentUpload = onRetryAttachmentUpload,
+                    onRetryAllFailedAttachments = onRetryAllFailedAttachments
                 )
                 item { StationsSection(state.stations, onApparatusClick) }
             }
@@ -187,12 +250,17 @@ private fun DashboardContent(
 
 private fun androidx.compose.foundation.lazy.LazyListScope.dashboardMainItems(
     state: DashboardUiState.Success,
+    stationSummary: com.example.firestationops.domain.dashboard.StationReadinessSummary,
+    stations: List<CoreStation>,
+    selectedStationId: String?,
+    onStationSelect: (String?) -> Unit,
     syncState: SyncRunnerState,
     lastSyncResult: com.example.firestationops.domain.sync.SyncResult?,
     cloudSyncEnabled: Boolean,
     onApparatusClick: (String) -> Unit,
     onOpenDeficienciesClick: () -> Unit,
     onDeficiencyClick: (String) -> Unit,
+    onEquipmentClick: (String) -> Unit,
     onOpenIncidentsClick: () -> Unit,
     showDepartmentSettings: Boolean,
     onOpenDepartmentSettings: () -> Unit,
@@ -204,6 +272,20 @@ private fun androidx.compose.foundation.lazy.LazyListScope.dashboardMainItems(
     item {
         Text("Officer Dashboard", style = MaterialTheme.typography.headlineMedium)
     }
+
+    // Comprehensive Station Status, Firefighters, Equipment Readiness & Urgent Alerts Overview
+    item {
+        StationStatusOverviewCard(
+            summary = stationSummary,
+            stations = stations,
+            selectedStationId = selectedStationId,
+            onStationSelect = onStationSelect,
+            onApparatusClick = onApparatusClick,
+            onDeficiencyClick = onDeficiencyClick,
+            onEquipmentClick = onEquipmentClick
+        )
+    }
+
     if (showDepartmentSettings) {
         item {
             Card(

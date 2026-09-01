@@ -43,6 +43,7 @@ fun MainAppContainer(
     personnelContent: @Composable () -> Unit,
     equipmentContent: @Composable () -> Unit,
     shiftsContent: @Composable () -> Unit = {},
+    searchContent: @Composable () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(
@@ -108,6 +109,7 @@ fun MainAppContainer(
                         AppNavDestination.PERSONNEL -> personnelContent()
                         AppNavDestination.EQUIPMENT -> equipmentContent()
                         AppNavDestination.SHIFTS -> shiftsContent()
+                        AppNavDestination.SEARCH -> searchContent()
                     }
                 }
             }
@@ -124,6 +126,7 @@ fun MainAppContainer(
                         AppNavDestination.PERSONNEL -> personnelContent()
                         AppNavDestination.EQUIPMENT -> equipmentContent()
                         AppNavDestination.SHIFTS -> shiftsContent()
+                        AppNavDestination.SEARCH -> searchContent()
                     }
                 }
 

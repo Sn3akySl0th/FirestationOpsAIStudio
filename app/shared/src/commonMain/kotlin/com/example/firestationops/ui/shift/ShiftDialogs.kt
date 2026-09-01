@@ -28,6 +28,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
+import com.example.firestationops.currentTimeMillis
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -256,21 +257,21 @@ fun CreateOrEditShiftDialog(
             Button(
                 onClick = {
                     val newShift = Shift(
-                        id = shift?.id ?: "shift_${System.currentTimeMillis()}",
+                        id = shift?.id ?: "shift_${currentTimeMillis()}",
                         departmentId = departmentId,
                         stationId = shift?.stationId ?: "station_1",
                         name = name.ifBlank { "${selectedType.label} Crew" },
                         shiftType = selectedType,
-                        startTimeMillis = shift?.startTimeMillis ?: System.currentTimeMillis(),
-                        endTimeMillis = shift?.endTimeMillis ?: (System.currentTimeMillis() + 43200000L),
+                        startTimeMillis = shift?.startTimeMillis ?: currentTimeMillis(),
+                        endTimeMillis = shift?.endTimeMillis ?: (currentTimeMillis() + 43200000L),
                         minimumStaffing = minStaffing,
                         officerInChargeId = selectedOicId,
                         assignedFirefighterIds = shift?.assignedFirefighterIds ?: emptyList(),
                         status = status,
                         recurringDays = selectedDays.toList(),
                         notes = notes.ifBlank { null },
-                        createdAt = shift?.createdAt ?: System.currentTimeMillis(),
-                        updatedAt = System.currentTimeMillis()
+                        createdAt = shift?.createdAt ?: currentTimeMillis(),
+                        updatedAt = currentTimeMillis()
                     )
                     onSave(newShift)
                 },

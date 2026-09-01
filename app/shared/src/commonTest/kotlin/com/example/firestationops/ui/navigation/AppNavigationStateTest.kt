@@ -46,5 +46,9 @@ class AppNavigationStateTest {
         assertEquals("Equipment", AppNavDestination.EQUIPMENT.title)
         assertEquals("equipment", AppNavDestination.EQUIPMENT.route)
         assertEquals("nav_tab_equipment", AppNavDestination.EQUIPMENT.testTag)
+
+        assertEquals("Search", AppNavDestination.SEARCH.title)
+        assertEquals("search", AppNavDestination.SEARCH.route)
+        assertEquals("nav_tab_search", AppNavDestination.SEARCH.testTag)
     }
 }

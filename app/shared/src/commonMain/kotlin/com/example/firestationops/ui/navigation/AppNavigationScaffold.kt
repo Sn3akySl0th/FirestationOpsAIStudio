@@ -55,6 +55,7 @@ fun AppNavigationScaffold(
     personnelContent: @Composable () -> Unit,
     equipmentContent: @Composable () -> Unit,
     shiftsContent: @Composable () -> Unit = {},
+    searchContent: @Composable () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     BoxWithConstraints(modifier = modifier.fillMaxSize().testTag("app_navigation_scaffold")) {
@@ -76,7 +77,8 @@ fun AppNavigationScaffold(
                         dashboardContent = dashboardContent,
                         personnelContent = personnelContent,
                         equipmentContent = equipmentContent,
-                        shiftsContent = shiftsContent
+                        shiftsContent = shiftsContent,
+                        searchContent = searchContent
                     )
                 }
             }
@@ -89,7 +91,8 @@ fun AppNavigationScaffold(
                         dashboardContent = dashboardContent,
                         personnelContent = personnelContent,
                         equipmentContent = equipmentContent,
-                        shiftsContent = shiftsContent
+                        shiftsContent = shiftsContent,
+                        searchContent = searchContent
                     )
                 }
                 AppBottomNavigationBar(
@@ -108,7 +111,8 @@ private fun AppNavHostContent(
     dashboardContent: @Composable () -> Unit,
     personnelContent: @Composable () -> Unit,
     equipmentContent: @Composable () -> Unit,
-    shiftsContent: @Composable () -> Unit
+    shiftsContent: @Composable () -> Unit,
+    searchContent: @Composable () -> Unit
 ) {
     AnimatedContent(
         targetState = currentDestination,
@@ -120,6 +124,7 @@ private fun AppNavHostContent(
             AppNavDestination.PERSONNEL -> personnelContent()
             AppNavDestination.EQUIPMENT -> equipmentContent()
             AppNavDestination.SHIFTS -> shiftsContent()
+            AppNavDestination.SEARCH -> searchContent()
         }
     }
 }

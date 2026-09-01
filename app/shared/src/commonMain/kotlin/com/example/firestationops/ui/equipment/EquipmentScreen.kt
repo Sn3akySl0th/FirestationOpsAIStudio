@@ -13,10 +13,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -35,25 +39,46 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.firestationops.domain.equipment.EquipmentTagMatcher
 import com.example.firestationops.model.Equipment
 import com.example.firestationops.model.EquipmentCategory
 import com.example.firestationops.model.EquipmentStatus
 
 /**
- * Screen displaying department equipment, tracking status, readiness, inspections, categories, and maintenance needs.
+ * Screen displaying department equipment, tracking status, readiness, inspections, categories, and maintenance needs,
+ * with integrated live camera QR / Barcode tag scanning for instantaneous field status updates.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EquipmentScreen(
     equipmentList: List<Equipment>,
     onStatusChange: (equipmentId: String, newStatus: EquipmentStatus) -> Unit = { _, _ -> },
+    onStatusChangeWithNotes: (equipmentId: String, newStatus: EquipmentStatus, notes: String?) -> Unit = { id, status, _ -> onStatusChange(id, status) },
+    onAssignBarcode: (equipmentId: String, barcode: String) -> Unit = { _, _ -> },
     onEquipmentClick: (Equipment) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<EquipmentCategory?>(null) }
     var selectedStatusFilter by remember { mutableStateOf<EquipmentStatus?>(null) }
+
+    // Dialog state
     var selectedEquipmentForDialog by remember { mutableStateOf<Equipment?>(null) }
+    var isScannerOpen by remember { mutableStateOf(false) }
+    var scannedEquipmentForQuickStatus by remember { mutableStateOf<Equipment?>(null) }
+    var unrecognizedScannedTag by remember { mutableStateOf<String?>(null) }
+    var equipmentForQrBadge by remember { mutableStateOf<Equipment?>(null) }
+
+    fun processScannedTag(tag: String) {
+        val matchedEquipment = EquipmentTagMatcher.matchEquipmentByTag(tag, equipmentList)
+        if (matchedEquipment != null) {
+            isScannerOpen = false
+            scannedEquipmentForQuickStatus = matchedEquipment
+        } else {
+            isScannerOpen = false
+            unrecognizedScannedTag = tag
+        }
+    }
 
     val filteredList = remember(equipmentList, searchQuery, selectedCategory, selectedStatusFilter) {
         equipmentList.filter { eq ->
@@ -99,9 +124,27 @@ fun EquipmentScreen(
                         )
                     }
                 },
+                actions = {
+                    FilledTonalButton(
+                        onClick = { isScannerOpen = true },
+                        modifier = Modifier
+                            .padding(end = 8.dp)
+                            .testTag("scan_equipment_top_bar_btn")
+                    ) {
+                        Text("📷 Scan Tag")
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 )
+            )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { isScannerOpen = true },
+                icon = { Text("📷", style = MaterialTheme.typography.titleMedium) },
+                text = { Text("Scan QR Tag") },
+                modifier = Modifier.testTag("scan_equipment_tag_fab")
             )
         }
     ) { innerPadding ->
@@ -251,7 +294,7 @@ fun EquipmentScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
+                contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)
             ) {
                 if (filteredList.isEmpty()) {
                     item {
@@ -298,12 +341,69 @@ fun EquipmentScreen(
                         EquipmentListItem(
                             equipment = equipment,
                             onItemClick = { onEquipmentClick(equipment) },
-                            onChangeStatusClick = { selectedEquipmentForDialog = equipment }
+                            onChangeStatusClick = { selectedEquipmentForDialog = equipment },
+                            onShowQrClick = { equipmentForQrBadge = equipment }
                         )
                     }
                 }
             }
         }
+    }
+
+    // Live Camera / Manual QR Scanner Dialog
+    if (isScannerOpen) {
+        EquipmentScannerDialog(
+            equipmentList = equipmentList,
+            onTagScanned = { scannedTag ->
+                processScannedTag(scannedTag)
+            },
+            onDismiss = { isScannerOpen = false }
+        )
+    }
+
+    // Quick Status Update Dialog for recognized tag
+    scannedEquipmentForQuickStatus?.let { equipment ->
+        EquipmentQuickStatusDialog(
+            equipment = equipment,
+            onStatusUpdated = { newStatus, notes, scanNext ->
+                onStatusChangeWithNotes(equipment.id, newStatus, notes)
+                onStatusChange(equipment.id, newStatus)
+                scannedEquipmentForQuickStatus = null
+                if (scanNext) {
+                    isScannerOpen = true
+                }
+            },
+            onDismiss = { scannedEquipmentForQuickStatus = null }
+        )
+    }
+
+    // Tag Unrecognized Dialog
+    unrecognizedScannedTag?.let { tag ->
+        EquipmentTagNotFoundDialog(
+            scannedTag = tag,
+            equipmentList = equipmentList,
+            onAssignTagToEquipment = { equipmentId, assignedTag ->
+                onAssignBarcode(equipmentId, assignedTag)
+                unrecognizedScannedTag = null
+            },
+            onScanAgain = {
+                unrecognizedScannedTag = null
+                isScannerOpen = true
+            },
+            onDismiss = { unrecognizedScannedTag = null }
+        )
+    }
+
+    // Equipment Tag & QR Dialog
+    equipmentForQrBadge?.let { eq ->
+        EquipmentTagQrDialog(
+            equipment = eq,
+            onTestScan = { scannedPayload ->
+                equipmentForQrBadge = null
+                processScannedTag(scannedPayload)
+            },
+            onDismiss = { equipmentForQrBadge = null }
+        )
     }
 
     // Detail & Status Dialog

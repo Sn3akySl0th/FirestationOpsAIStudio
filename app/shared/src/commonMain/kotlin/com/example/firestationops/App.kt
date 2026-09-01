@@ -58,8 +58,10 @@ import com.example.firestationops.ui.navigation.MainAppContainer
 import com.example.firestationops.ui.navigation.rememberAppNavigationState
 import com.example.firestationops.ui.personnel.PersonnelScreen
 import com.example.firestationops.ui.equipment.EquipmentScreen
+import com.example.firestationops.ui.search.GlobalSearchScreen
 import com.example.firestationops.ui.shift.ShiftScreen
 import com.example.firestationops.domain.model.Role
+import com.example.firestationops.domain.search.SearchFilterCategory
 
 sealed class Screen {
     object Main : Screen()
@@ -136,8 +138,15 @@ fun App(
                             }
                             val firefighters by departmentOpsStore.getFirefighters().collectAsState(emptyList())
                             val equipmentList by departmentOpsStore.getEquipment().collectAsState(emptyList())
+                            val stationsList by departmentOpsStore.getStations().collectAsState(emptyList())
                             val shiftsList by departmentOpsStore.getShifts().collectAsState(emptyList())
                             val availabilitiesMap by departmentOpsStore.getAvailabilities().collectAsState(emptyMap())
+
+                            var searchQuery by remember { mutableStateOf("") }
+                            var searchFilter by remember { mutableStateOf(SearchFilterCategory.ALL) }
+                            val searchResults = remember(searchQuery, searchFilter, firefighters, equipmentList, stationsList) {
+                                departmentOpsStore.search(searchQuery, searchFilter)
+                            }
 
                             MainAppContainer(
                                 member = state.member,
@@ -146,9 +155,15 @@ fun App(
                                 dashboardContent = {
                                     DashboardScreen(
                                         viewModel = dashboardViewModel,
+                                        firefighters = firefighters,
+                                        equipmentList = equipmentList,
+                                        stationsList = stationsList,
                                         onApparatusClick = { id -> currentScreen = Screen.Inspection(id) },
                                         onOpenDeficienciesClick = { currentScreen = Screen.DeficiencyList },
                                         onDeficiencyClick = { id -> currentScreen = Screen.DeficiencyDetail(id) },
+                                        onEquipmentClick = {
+                                            navigationState.navigateTo(AppNavDestination.EQUIPMENT)
+                                        },
                                         onOpenIncidentsClick = { currentScreen = Screen.IncidentList },
                                         showDepartmentSettings = state.member.hasRole(Role.OFFICER),
                                         onOpenDepartmentSettings = { currentScreen = Screen.DepartmentSettings },
@@ -171,6 +186,12 @@ fun App(
                                         equipmentList = equipmentList,
                                         onStatusChange = { eqId, newStatus ->
                                             departmentOpsStore.updateEquipmentStatus(eqId, newStatus)
+                                        },
+                                        onStatusChangeWithNotes = { eqId, newStatus, notes ->
+                                            departmentOpsStore.updateEquipmentStatus(eqId, newStatus, notes)
+                                        },
+                                        onAssignBarcode = { eqId, barcode ->
+                                            departmentOpsStore.assignEquipmentBarcode(eqId, barcode)
                                         }
                                     )
                                 },
@@ -185,6 +206,19 @@ fun App(
                                         onAssignFirefighter = { sId, ffId -> departmentOpsStore.assignFirefighterToShift(sId, ffId) },
                                         onRemoveFirefighter = { sId, ffId -> departmentOpsStore.removeFirefighterFromShift(sId, ffId) },
                                         onUpdateAvailability = { avail -> departmentOpsStore.updateFirefighterAvailability(avail) }
+                                    )
+                                },
+                                searchContent = {
+                                    GlobalSearchScreen(
+                                        searchResults = searchResults,
+                                        onQueryChange = { searchQuery = it },
+                                        onFilterChange = { searchFilter = it },
+                                        onUpdateFirefighterStatus = { ffId, newStatus ->
+                                            departmentOpsStore.updateFirefighterStatus(ffId, newStatus)
+                                        },
+                                        onUpdateEquipmentStatus = { eqId, newStatus ->
+                                            departmentOpsStore.updateEquipmentStatus(eqId, newStatus)
+                                        }
                                     )
                                 }
                             )

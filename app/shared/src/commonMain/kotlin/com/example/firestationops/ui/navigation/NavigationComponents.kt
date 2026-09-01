@@ -34,7 +34,8 @@ enum class AppNavDestination(
     DASHBOARD("dashboard", "Dashboard", "nav_tab_dashboard"),
     PERSONNEL("personnel", "Personnel", "nav_tab_personnel"),
     EQUIPMENT("equipment", "Equipment", "nav_tab_equipment"),
-    SHIFTS("shifts", "Shifts", "nav_tab_shifts")
+    SHIFTS("shifts", "Shifts", "nav_tab_shifts"),
+    SEARCH("search", "Search", "nav_tab_search")
 }
 
 /**
@@ -238,6 +239,33 @@ private fun NavIcon(destination: AppNavDestination, isSelected: Boolean) {
                 }
                 drawPath(
                     path = handsPath,
+                    color = color,
+                    style = Stroke(strokeWidth)
+                )
+            }
+        }
+        AppNavDestination.SEARCH -> {
+            Canvas(modifier = Modifier.size(24.dp)) {
+                val color = if (isSelected) {
+                    Color(0xFFB71C1C)
+                } else {
+                    Color.Gray
+                }
+                val strokeWidth = 2.dp.toPx()
+                // Magnifying glass lens circle
+                drawCircle(
+                    color = color,
+                    radius = size.width * 0.28f,
+                    center = Offset(size.width * 0.42f, size.height * 0.42f),
+                    style = Stroke(strokeWidth)
+                )
+                // Magnifying glass handle
+                val handlePath = Path().apply {
+                    moveTo(size.width * 0.62f, size.height * 0.62f)
+                    lineTo(size.width * 0.85f, size.height * 0.85f)
+                }
+                drawPath(
+                    path = handlePath,
                     color = color,
                     style = Stroke(strokeWidth)
                 )

@@ -42,6 +42,7 @@ fun EquipmentListItem(
     equipment: Equipment,
     onItemClick: () -> Unit,
     onChangeStatusClick: () -> Unit,
+    onShowQrClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val needsAttention = equipment.status.requiresAttention
@@ -207,11 +208,25 @@ fun EquipmentListItem(
                     }
                 )
 
-                OutlinedButton(
-                    onClick = onChangeStatusClick,
-                    modifier = Modifier.testTag("change_eq_status_btn_${equipment.id}")
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Change Status", style = MaterialTheme.typography.labelMedium)
+                    onShowQrClick?.let { onQr ->
+                        OutlinedButton(
+                            onClick = onQr,
+                            modifier = Modifier.testTag("show_qr_btn_${equipment.id}")
+                        ) {
+                            Text("QR Tag", style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onChangeStatusClick,
+                        modifier = Modifier.testTag("change_eq_status_btn_${equipment.id}")
+                    ) {
+                        Text("Change Status", style = MaterialTheme.typography.labelMedium)
+                    }
                 }
             }
         }
