@@ -1,0 +1,43 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function canonicalMemberPath() {
+      return /databases/(default)/documents/members/$(request.auth.uid);
+    }
+
+    function hasValidCanonicalRoles() {
+      let member = firestore.get(canonicalMemberPath()).data;
+      let roles = member.roles;
+      return roles is list
+        && roles.size() > 0
+        && roles.hasOnly(['MEMBER', 'APPARATUS_OFFICER', 'OFFICER', 'ADMIN']);
+    }
+
+    function isActiveDepartmentMember(departmentId) {
+      return request.auth != null
+        && firestore.exists(canonicalMemberPath())
+        && firestore.get(canonicalMemberPath()).data.id == request.auth.uid
+        && firestore.get(canonicalMemberPath()).data.departmentId == departmentId
+        && firestore.get(canonicalMemberPath()).data.isActive == true
+        && hasValidCanonicalRoles();
+    }
+
+    function isAllowedImageUpload() {
+      return request.resource.size > 0
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('^image/(jpeg|png|webp)$');
+    }
+
+    match /departments/{departmentId}/attachments/{attachmentId} {
+      allow read: if isActiveDepartmentMember(departmentId);
+      allow create, update: if isActiveDepartmentMember(departmentId)
+        && isAllowedImageUpload();
+      allow delete: if false;
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

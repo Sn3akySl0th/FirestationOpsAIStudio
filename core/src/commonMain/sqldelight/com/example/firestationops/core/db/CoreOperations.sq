@@ -1,0 +1,123 @@
+CREATE TABLE StationEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    stationNumber TEXT,
+    name TEXT NOT NULL,
+    address TEXT,
+    phoneNumber TEXT,
+    isActive INTEGER NOT NULL DEFAULT 1,
+    apparatusIdsJson TEXT NOT NULL DEFAULT '[]',
+    createdAt INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE FirefighterEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    stationId TEXT,
+    badgeNumber TEXT,
+    firstName TEXT NOT NULL,
+    lastName TEXT NOT NULL,
+    rank TEXT,
+    email TEXT,
+    phone TEXT,
+    certificationsJson TEXT NOT NULL DEFAULT '[]',
+    isOfficer INTEGER NOT NULL DEFAULT 0,
+    isActive INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'AVAILABLE',
+    createdAt INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE EquipmentEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    stationId TEXT,
+    apparatusId TEXT,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    serialNumber TEXT,
+    barcode TEXT,
+    status TEXT NOT NULL,
+    assignedToFirefighterId TEXT,
+    lastInspectionDate INTEGER,
+    expirationDate INTEGER,
+    notes TEXT,
+    createdAt INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL DEFAULT 0
+);
+
+-- Station Queries
+selectAllStations:
+SELECT * FROM StationEntity;
+
+selectStationsByDepartment:
+SELECT * FROM StationEntity WHERE departmentId = ?;
+
+selectStationById:
+SELECT * FROM StationEntity WHERE id = ?;
+
+insertStation:
+INSERT OR REPLACE INTO StationEntity (
+    id, departmentId, stationNumber, name, address, phoneNumber, isActive, apparatusIdsJson, createdAt, updatedAt
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteStationById:
+DELETE FROM StationEntity WHERE id = ?;
+
+deleteStationsByDepartment:
+DELETE FROM StationEntity WHERE departmentId = ?;
+
+-- Firefighter Queries
+selectAllFirefighters:
+SELECT * FROM FirefighterEntity;
+
+selectFirefightersByDepartment:
+SELECT * FROM FirefighterEntity WHERE departmentId = ?;
+
+selectFirefightersByStation:
+SELECT * FROM FirefighterEntity WHERE stationId = ?;
+
+selectFirefighterById:
+SELECT * FROM FirefighterEntity WHERE id = ?;
+
+insertFirefighter:
+INSERT OR REPLACE INTO FirefighterEntity (
+    id, departmentId, stationId, badgeNumber, firstName, lastName, rank, email, phone, certificationsJson, isOfficer, isActive, status, createdAt, updatedAt
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteFirefighterById:
+DELETE FROM FirefighterEntity WHERE id = ?;
+
+deleteFirefightersByDepartment:
+DELETE FROM FirefighterEntity WHERE departmentId = ?;
+
+-- Equipment Queries
+selectAllEquipment:
+SELECT * FROM EquipmentEntity;
+
+selectEquipmentByDepartment:
+SELECT * FROM EquipmentEntity WHERE departmentId = ?;
+
+selectEquipmentByStation:
+SELECT * FROM EquipmentEntity WHERE stationId = ?;
+
+selectEquipmentByApparatus:
+SELECT * FROM EquipmentEntity WHERE apparatusId = ?;
+
+selectEquipmentByFirefighter:
+SELECT * FROM EquipmentEntity WHERE assignedToFirefighterId = ?;
+
+selectEquipmentById:
+SELECT * FROM EquipmentEntity WHERE id = ?;
+
+insertEquipment:
+INSERT OR REPLACE INTO EquipmentEntity (
+    id, departmentId, stationId, apparatusId, name, category, serialNumber, barcode, status, assignedToFirefighterId, lastInspectionDate, expirationDate, notes, createdAt, updatedAt
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteEquipmentById:
+DELETE FROM EquipmentEntity WHERE id = ?;
+
+deleteEquipmentByDepartment:
+DELETE FROM EquipmentEntity WHERE departmentId = ?;

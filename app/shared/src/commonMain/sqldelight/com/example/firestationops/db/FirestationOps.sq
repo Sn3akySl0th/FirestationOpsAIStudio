@@ -1,0 +1,518 @@
+CREATE TABLE StationEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    name TEXT NOT NULL,
+    address TEXT
+);
+
+CREATE TABLE ApparatusEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    stationId TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    radioName TEXT NOT NULL,
+    status TEXT NOT NULL
+);
+
+CREATE TABLE InspectionTemplateEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    name TEXT NOT NULL,
+    apparatusType TEXT NOT NULL,
+    itemsJson TEXT NOT NULL,
+    frequencyHours INTEGER NOT NULL DEFAULT 24,
+    isActive INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE InspectionEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    templateId TEXT NOT NULL,
+    apparatusId TEXT NOT NULL,
+    departmentId TEXT NOT NULL,
+    startedAt INTEGER NOT NULL,
+    completedAt INTEGER,
+    startedByUserId TEXT NOT NULL,
+    responsesJson TEXT NOT NULL,
+    isFinalized INTEGER NOT NULL DEFAULT 0,
+    syncStatus TEXT NOT NULL DEFAULT 'LOCAL_ONLY',
+    voidedAt INTEGER,
+    voidedReason TEXT
+);
+
+CREATE TABLE DeficiencyEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    inspectionId TEXT,
+    apparatusId TEXT NOT NULL,
+    departmentId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    status TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    createdByUserId TEXT NOT NULL,
+    resolvedAt INTEGER,
+    resolvedByUserId TEXT,
+    resolutionNote TEXT,
+    syncStatus TEXT NOT NULL DEFAULT 'LOCAL_ONLY',
+    attachmentIdsJson TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE DepartmentEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    stationIdsJson TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE MemberEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    email TEXT NOT NULL,
+    firstName TEXT NOT NULL,
+    lastName TEXT NOT NULL,
+    memberNumber TEXT,
+    rolesJson TEXT NOT NULL,
+    isActive INTEGER NOT NULL DEFAULT 1,
+    createdAt INTEGER NOT NULL,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE SessionEntity (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 0),
+    userId TEXT NOT NULL
+);
+
+CREATE TABLE AttachmentEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    localUri TEXT,
+    remoteUrl TEXT,
+    syncStatus TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    createdByUserId TEXT NOT NULL,
+    lastError TEXT,
+    failedAt INTEGER
+);
+
+CREATE TABLE IncidentEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT NOT NULL,
+    locationDescription TEXT NOT NULL,
+    incidentType TEXT NOT NULL,
+    status TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    createdByUserId TEXT NOT NULL,
+    updatedAt INTEGER NOT NULL,
+    updatedByUserId TEXT NOT NULL,
+    closedAt INTEGER,
+    closedByUserId TEXT,
+    syncStatus TEXT NOT NULL DEFAULT 'LOCAL_ONLY'
+);
+
+CREATE TABLE CommandLogEntryEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    incidentId TEXT NOT NULL,
+    departmentId TEXT NOT NULL,
+    message TEXT NOT NULL,
+    entryType TEXT NOT NULL,
+    createdAt INTEGER NOT NULL,
+    createdByUserId TEXT NOT NULL,
+    incidentTimestamp INTEGER,
+    correctsEntryId TEXT,
+    syncStatus TEXT NOT NULL DEFAULT 'LOCAL_ONLY'
+);
+
+CREATE TABLE IncidentUnitAssignmentEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    incidentId TEXT NOT NULL,
+    departmentId TEXT NOT NULL,
+    apparatusId TEXT NOT NULL,
+    status TEXT NOT NULL,
+    assignedAt INTEGER NOT NULL,
+    assignedByUserId TEXT NOT NULL,
+    updatedAt INTEGER NOT NULL,
+    updatedByUserId TEXT NOT NULL,
+    syncStatus TEXT NOT NULL DEFAULT 'LOCAL_ONLY',
+    UNIQUE(incidentId, apparatusId)
+);
+
+CREATE TABLE PersonnelAssignmentEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    incidentId TEXT NOT NULL,
+    departmentId TEXT NOT NULL,
+    memberId TEXT NOT NULL,
+    status TEXT NOT NULL,
+    assignedAt INTEGER NOT NULL,
+    assignedByUserId TEXT NOT NULL,
+    updatedAt INTEGER NOT NULL,
+    updatedByUserId TEXT NOT NULL,
+    syncStatus TEXT NOT NULL DEFAULT 'LOCAL_ONLY',
+    UNIQUE(incidentId, memberId)
+);
+
+CREATE TABLE SyncBaselineEntity (
+    recordType TEXT NOT NULL,
+    recordId TEXT NOT NULL,
+    snapshotJson TEXT NOT NULL,
+    PRIMARY KEY(recordType, recordId)
+);
+
+CREATE TABLE SyncConflictEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    departmentId TEXT NOT NULL,
+    recordType TEXT NOT NULL,
+    recordId TEXT NOT NULL,
+    localSnapshotJson TEXT NOT NULL,
+    remoteSnapshotJson TEXT NOT NULL,
+    detectedAt INTEGER NOT NULL
+);
+
+-- Queries
+selectAllStations:
+SELECT * FROM StationEntity;
+
+insertStation:
+INSERT OR REPLACE INTO StationEntity(id, departmentId, name, address)
+VALUES (?, ?, ?, ?);
+
+selectAllApparatus:
+SELECT * FROM ApparatusEntity;
+
+insertApparatus:
+INSERT OR REPLACE INTO ApparatusEntity(id, departmentId, stationId, name, type, radioName, status)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+selectAllTemplates:
+SELECT * FROM InspectionTemplateEntity;
+
+insertTemplate:
+INSERT OR REPLACE INTO InspectionTemplateEntity(id, departmentId, name, apparatusType, itemsJson, frequencyHours, isActive)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+selectAllInspections:
+SELECT * FROM InspectionEntity;
+
+selectInspectionsByApparatus:
+SELECT * FROM InspectionEntity WHERE apparatusId = ?;
+
+selectInspectionsByDepartment:
+SELECT * FROM InspectionEntity WHERE departmentId = ?;
+
+selectInspectionById:
+SELECT * FROM InspectionEntity WHERE id = ?;
+
+selectLatestFinalizedByApparatus:
+SELECT * FROM InspectionEntity
+WHERE apparatusId = ? AND isFinalized = 1 AND completedAt IS NOT NULL
+ORDER BY completedAt DESC
+LIMIT 1;
+
+selectLatestDraftByApparatus:
+SELECT * FROM InspectionEntity
+WHERE apparatusId = ? AND isFinalized = 0
+ORDER BY startedAt DESC
+LIMIT 1;
+
+insertInspection:
+INSERT OR REPLACE INTO InspectionEntity(id, templateId, apparatusId, departmentId, startedAt, completedAt, startedByUserId, responsesJson, isFinalized, syncStatus, voidedAt, voidedReason)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteInspectionById:
+DELETE FROM InspectionEntity WHERE id = ?;
+
+updateInspectionSyncStatus:
+UPDATE InspectionEntity
+SET syncStatus = ?
+WHERE id = ?;
+
+selectPendingSyncInspections:
+SELECT * FROM InspectionEntity WHERE syncStatus != 'SYNCED';
+
+selectAllDeficiencies:
+SELECT * FROM DeficiencyEntity;
+
+selectDeficienciesByApparatus:
+SELECT * FROM DeficiencyEntity WHERE apparatusId = ?;
+
+selectDeficienciesByDepartment:
+SELECT * FROM DeficiencyEntity WHERE departmentId = ?;
+
+selectDeficienciesByInspection:
+SELECT * FROM DeficiencyEntity WHERE inspectionId = ?;
+
+voidDeficienciesByInspectionId:
+UPDATE DeficiencyEntity
+SET status = 'VOIDED', syncStatus = 'PENDING_SYNC'
+WHERE inspectionId = ? AND status != 'VOIDED';
+
+insertDeficiency:
+INSERT OR REPLACE INTO DeficiencyEntity(id, inspectionId, apparatusId, departmentId, title, description, severity, status, createdAt, createdByUserId, resolvedAt, resolvedByUserId, resolutionNote, syncStatus, attachmentIdsJson)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateDeficiencyStatus:
+UPDATE DeficiencyEntity
+SET status = ?, resolvedAt = ?, resolvedByUserId = ?, resolutionNote = ?, syncStatus = 'PENDING_SYNC'
+WHERE id = ?;
+
+updateDeficiencySyncStatus:
+UPDATE DeficiencyEntity
+SET syncStatus = ?
+WHERE id = ?;
+
+selectPendingSyncDeficiencies:
+SELECT * FROM DeficiencyEntity WHERE syncStatus != 'SYNCED';
+
+updateApparatusStatus:
+UPDATE ApparatusEntity
+SET status = ?
+WHERE id = ?;
+
+updateStationDepartmentId:
+UPDATE StationEntity
+SET departmentId = ?
+WHERE id = ?;
+
+updateApparatusDepartmentId:
+UPDATE ApparatusEntity
+SET departmentId = ?
+WHERE id = ?;
+
+updateTemplateDepartmentId:
+UPDATE InspectionTemplateEntity
+SET departmentId = ?
+WHERE id = ?;
+
+updateInspectionApparatusId:
+UPDATE InspectionEntity
+SET apparatusId = ?
+WHERE apparatusId = ?;
+
+updateInspectionTemplateId:
+UPDATE InspectionEntity
+SET templateId = ?
+WHERE templateId = ?;
+
+updateDeficiencyApparatusId:
+UPDATE DeficiencyEntity
+SET apparatusId = ?
+WHERE apparatusId = ?;
+
+updateApparatusStationId:
+UPDATE ApparatusEntity
+SET stationId = ?
+WHERE stationId = ?;
+
+updateUnitAssignmentApparatusId:
+UPDATE IncidentUnitAssignmentEntity
+SET apparatusId = ?
+WHERE apparatusId = ?;
+
+deleteStationById:
+DELETE FROM StationEntity WHERE id = ?;
+
+deleteApparatusById:
+DELETE FROM ApparatusEntity WHERE id = ?;
+
+deleteTemplateById:
+DELETE FROM InspectionTemplateEntity WHERE id = ?;
+
+-- Membership Queries
+selectAllDepartments:
+SELECT * FROM DepartmentEntity;
+
+selectDepartmentById:
+SELECT * FROM DepartmentEntity WHERE id = ?;
+
+insertDepartment:
+INSERT OR REPLACE INTO DepartmentEntity(id, name, stationIdsJson, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?);
+
+selectMemberByEmail:
+SELECT * FROM MemberEntity WHERE email = ?;
+
+selectMemberById:
+SELECT * FROM MemberEntity WHERE id = ?;
+
+selectAllMembersByDepartment:
+SELECT * FROM MemberEntity WHERE departmentId = ?;
+
+insertMember:
+INSERT OR REPLACE INTO MemberEntity(id, departmentId, email, firstName, lastName, memberNumber, rolesJson, isActive, createdAt, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteMembersWithEmailExceptId:
+DELETE FROM MemberEntity WHERE email = ? AND id != ?;
+
+deleteMemberById:
+DELETE FROM MemberEntity WHERE id = ?;
+
+-- Session Queries
+selectSession:
+SELECT userId FROM SessionEntity WHERE id = 0;
+
+insertSession:
+INSERT OR REPLACE INTO SessionEntity(id, userId)
+VALUES (0, ?);
+
+clearSession:
+DELETE FROM SessionEntity WHERE id = 0;
+
+-- Attachment Queries
+selectAttachmentById:
+SELECT * FROM AttachmentEntity WHERE id = ?;
+
+selectAllAttachments:
+SELECT * FROM AttachmentEntity;
+
+selectAttachmentsByDepartment:
+SELECT * FROM AttachmentEntity WHERE departmentId = ?;
+
+selectPendingSyncAttachments:
+SELECT * FROM AttachmentEntity WHERE syncStatus != 'SYNCED';
+
+insertAttachment:
+INSERT OR REPLACE INTO AttachmentEntity(id, departmentId, localUri, remoteUrl, syncStatus, createdAt, createdByUserId, lastError, failedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateAttachmentSyncStatus:
+UPDATE AttachmentEntity
+SET syncStatus = ?
+WHERE id = ?;
+
+updateAttachmentUploadFailure:
+UPDATE AttachmentEntity
+SET syncStatus = 'SYNC_FAILED', lastError = ?, failedAt = ?
+WHERE id = ?;
+
+clearAttachmentUploadFailure:
+UPDATE AttachmentEntity
+SET syncStatus = ?, lastError = NULL, failedAt = NULL
+WHERE id = ?;
+
+updateAttachmentRemoteUrl:
+UPDATE AttachmentEntity
+SET remoteUrl = ?, syncStatus = 'SYNCED', lastError = NULL, failedAt = NULL
+WHERE id = ?;
+
+deleteAttachment:
+DELETE FROM AttachmentEntity WHERE id = ?;
+
+selectAllIncidents:
+SELECT * FROM IncidentEntity;
+
+selectIncidentsByDepartment:
+SELECT * FROM IncidentEntity WHERE departmentId = ? ORDER BY updatedAt DESC;
+
+selectIncidentById:
+SELECT * FROM IncidentEntity WHERE id = ?;
+
+insertIncident:
+INSERT OR REPLACE INTO IncidentEntity(
+    id, departmentId, title, summary, locationDescription, incidentType, status,
+    createdAt, createdByUserId, updatedAt, updatedByUserId, closedAt, closedByUserId, syncStatus
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectCommandLogEntriesByIncident:
+SELECT * FROM CommandLogEntryEntity WHERE incidentId = ? ORDER BY createdAt ASC;
+
+insertCommandLogEntry:
+INSERT OR REPLACE INTO CommandLogEntryEntity(
+    id, incidentId, departmentId, message, entryType, createdAt, createdByUserId,
+    incidentTimestamp, correctsEntryId, syncStatus
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectUnitAssignmentsByIncident:
+SELECT * FROM IncidentUnitAssignmentEntity WHERE incidentId = ? ORDER BY assignedAt ASC;
+
+insertUnitAssignment:
+INSERT OR REPLACE INTO IncidentUnitAssignmentEntity(
+    id, incidentId, departmentId, apparatusId, status,
+    assignedAt, assignedByUserId, updatedAt, updatedByUserId, syncStatus
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectPersonnelAssignmentsByIncident:
+SELECT * FROM PersonnelAssignmentEntity WHERE incidentId = ? ORDER BY assignedAt ASC;
+
+insertPersonnelAssignment:
+INSERT OR REPLACE INTO PersonnelAssignmentEntity(
+    id, incidentId, departmentId, memberId, status,
+    assignedAt, assignedByUserId, updatedAt, updatedByUserId, syncStatus
+)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+selectPendingSyncIncidents:
+SELECT * FROM IncidentEntity WHERE syncStatus != 'SYNCED';
+
+selectPendingSyncCommandLogEntries:
+SELECT * FROM CommandLogEntryEntity WHERE syncStatus != 'SYNCED';
+
+selectPendingSyncUnitAssignments:
+SELECT * FROM IncidentUnitAssignmentEntity WHERE syncStatus != 'SYNCED';
+
+selectPendingSyncPersonnelAssignments:
+SELECT * FROM PersonnelAssignmentEntity WHERE syncStatus != 'SYNCED';
+
+updateIncidentSyncStatus:
+UPDATE IncidentEntity
+SET syncStatus = ?
+WHERE id = ?;
+
+updateCommandLogEntrySyncStatus:
+UPDATE CommandLogEntryEntity
+SET syncStatus = ?
+WHERE id = ?;
+
+updateUnitAssignmentSyncStatus:
+UPDATE IncidentUnitAssignmentEntity
+SET syncStatus = ?
+WHERE id = ?;
+
+updatePersonnelAssignmentSyncStatus:
+UPDATE PersonnelAssignmentEntity
+SET syncStatus = ?
+WHERE id = ?;
+
+selectSyncBaseline:
+SELECT snapshotJson FROM SyncBaselineEntity
+WHERE recordType = ? AND recordId = ?;
+
+upsertSyncBaseline:
+INSERT OR REPLACE INTO SyncBaselineEntity(recordType, recordId, snapshotJson)
+VALUES (?, ?, ?);
+
+deleteSyncBaseline:
+DELETE FROM SyncBaselineEntity
+WHERE recordType = ? AND recordId = ?;
+
+selectAllSyncConflicts:
+SELECT * FROM SyncConflictEntity ORDER BY detectedAt DESC;
+
+selectSyncConflictsByDepartment:
+SELECT * FROM SyncConflictEntity
+WHERE departmentId = ?
+ORDER BY detectedAt DESC;
+
+selectSyncConflictByRecord:
+SELECT * FROM SyncConflictEntity
+WHERE recordType = ? AND recordId = ?
+LIMIT 1;
+
+insertSyncConflict:
+INSERT OR REPLACE INTO SyncConflictEntity(
+    id, departmentId, recordType, recordId, localSnapshotJson, remoteSnapshotJson, detectedAt
+)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+deleteSyncConflict:
+DELETE FROM SyncConflictEntity WHERE id = ?;
+
+deleteSyncConflictByRecord:
+DELETE FROM SyncConflictEntity
+WHERE recordType = ? AND recordId = ?;

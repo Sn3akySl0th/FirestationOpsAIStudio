@@ -1,0 +1,6 @@
+{
+  "name": "FirestationOps",
+  "description": "Offline-first operations application for volunteer fire departments",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
