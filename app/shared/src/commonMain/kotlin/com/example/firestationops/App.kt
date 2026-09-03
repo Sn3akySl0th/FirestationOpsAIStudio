@@ -201,11 +201,14 @@ fun App(
                                         firefighters = firefighters,
                                         availabilities = availabilitiesMap,
                                         departmentId = state.member.departmentId,
+                                        stations = stationsList,
+                                        equipmentList = equipmentList,
                                         onSaveShift = { shift -> departmentOpsStore.saveShift(shift) },
                                         onUpdateShiftStatus = { sId, newStatus -> departmentOpsStore.updateShiftStatus(sId, newStatus) },
                                         onAssignFirefighter = { sId, ffId -> departmentOpsStore.assignFirefighterToShift(sId, ffId) },
                                         onRemoveFirefighter = { sId, ffId -> departmentOpsStore.removeFirefighterFromShift(sId, ffId) },
-                                        onUpdateAvailability = { avail -> departmentOpsStore.updateFirefighterAvailability(avail) }
+                                        onUpdateAvailability = { avail -> departmentOpsStore.updateFirefighterAvailability(avail) },
+                                        onUpdateFirefighterStatus = { ffId, newStatus -> departmentOpsStore.updateFirefighterStatus(ffId, newStatus) }
                                     )
                                 },
                                 searchContent = {

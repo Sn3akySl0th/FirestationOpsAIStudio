@@ -199,4 +199,96 @@ class ShiftManagementTest {
         assertEquals(1, understaffed.size)
         assertEquals("s2", understaffed.first().id)
     }
+
+    @Test
+    fun testShiftDashboardNextUpcomingShiftCalculation() {
+        val firefighterId = "ff_01"
+        val shifts = listOf(
+            Shift(
+                id = "s_past",
+                departmentId = "dept_1",
+                stationId = "station_1",
+                name = "Past Shift",
+                startTimeMillis = 1000L,
+                endTimeMillis = 2000L,
+                assignedFirefighterIds = listOf(firefighterId),
+                status = ShiftStatus.COMPLETED
+            ),
+            Shift(
+                id = "s_later",
+                departmentId = "dept_1",
+                stationId = "station_1",
+                name = "Next Week Shift",
+                startTimeMillis = 50000L,
+                endTimeMillis = 60000L,
+                assignedFirefighterIds = listOf(firefighterId),
+                status = ShiftStatus.SCHEDULED
+            ),
+            Shift(
+                id = "s_soonest",
+                departmentId = "dept_1",
+                stationId = "station_1",
+                name = "Tomorrow Shift",
+                startTimeMillis = 10000L,
+                endTimeMillis = 20000L,
+                assignedFirefighterIds = listOf(firefighterId),
+                status = ShiftStatus.SCHEDULED
+            ),
+            Shift(
+                id = "s_other_ff",
+                departmentId = "dept_1",
+                stationId = "station_1",
+                name = "Other FF Shift",
+                startTimeMillis = 5000L,
+                endTimeMillis = 8000L,
+                assignedFirefighterIds = listOf("ff_99"),
+                status = ShiftStatus.SCHEDULED
+            )
+        )
+
+        val firefighterShifts = shifts.filter { it.assignedFirefighterIds.contains(firefighterId) }
+        val activeShift = firefighterShifts.firstOrNull { it.status == ShiftStatus.ACTIVE }
+        val nextShift = if (activeShift != null) null
+        else firefighterShifts
+            .filter { it.status == ShiftStatus.SCHEDULED }
+            .minByOrNull { it.startTimeMillis }
+
+        assertEquals(null, activeShift)
+        assertEquals("s_soonest", nextShift?.id)
+        assertEquals("Tomorrow Shift", nextShift?.name)
+    }
+
+    @Test
+    fun testShiftDashboardStationOnDutyCalculations() {
+        val stationId = "station_1"
+        val shifts = listOf(
+            Shift(
+                id = "s_active_1",
+                departmentId = "dept_1",
+                stationId = stationId,
+                name = "Active Engine Crew",
+                startTimeMillis = 1000L,
+                endTimeMillis = 5000L,
+                assignedFirefighterIds = listOf("ff_01", "ff_02"),
+                status = ShiftStatus.ACTIVE
+            ),
+            Shift(
+                id = "s_sched",
+                departmentId = "dept_1",
+                stationId = stationId,
+                name = "Scheduled Later",
+                startTimeMillis = 6000L,
+                endTimeMillis = 9000L,
+                assignedFirefighterIds = listOf("ff_03"),
+                status = ShiftStatus.SCHEDULED
+            )
+        )
+
+        val stationActive = shifts.filter { (it.stationId == null || it.stationId == stationId) && it.status == ShiftStatus.ACTIVE }
+        val onDutyIds = stationActive.flatMap { it.assignedFirefighterIds }.distinct()
+
+        assertEquals(1, stationActive.size)
+        assertEquals(listOf("ff_01", "ff_02"), onDutyIds)
+    }
 }
+

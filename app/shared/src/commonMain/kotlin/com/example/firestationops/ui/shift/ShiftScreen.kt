@@ -44,13 +44,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.firestationops.model.Equipment
 import com.example.firestationops.model.Firefighter
 import com.example.firestationops.model.FirefighterAvailability
+import com.example.firestationops.model.PersonnelStatus
 import com.example.firestationops.model.Shift
 import com.example.firestationops.model.ShiftStatus
 import com.example.firestationops.model.ShiftType
+import com.example.firestationops.model.Station
 
 enum class ShiftTab(val title: String) {
+    DASHBOARD("Shift Dashboard"),
     SCHEDULE("Shift Schedules"),
     AVAILABILITY("Availability Patterns")
 }
@@ -65,14 +69,18 @@ fun ShiftScreen(
     firefighters: List<Firefighter>,
     availabilities: Map<String, FirefighterAvailability>,
     departmentId: String,
+    stations: List<Station> = emptyList(),
+    equipmentList: List<Equipment> = emptyList(),
+    currentFirefighterId: String? = null,
     onSaveShift: (Shift) -> Unit = {},
     onUpdateShiftStatus: (shiftId: String, newStatus: ShiftStatus) -> Unit = { _, _ -> },
     onAssignFirefighter: (shiftId: String, firefighterId: String) -> Unit = { _, _ -> },
     onRemoveFirefighter: (shiftId: String, firefighterId: String) -> Unit = { _, _ -> },
     onUpdateAvailability: (FirefighterAvailability) -> Unit = {},
+    onUpdateFirefighterStatus: (firefighterId: String, newStatus: PersonnelStatus) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
-    var selectedTab by remember { mutableStateOf(ShiftTab.SCHEDULE) }
+    var selectedTab by remember { mutableStateOf(ShiftTab.DASHBOARD) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedStatusFilter by remember { mutableStateOf<ShiftStatus?>(null) }
     var onlyNeedsStaffingFilter by remember { mutableStateOf(false) }
@@ -201,6 +209,22 @@ fun ShiftScreen(
             }
 
             when (selectedTab) {
+                ShiftTab.DASHBOARD -> {
+                    ShiftDashboard(
+                        shifts = shifts,
+                        firefighters = firefighters,
+                        stations = stations,
+                        equipmentList = equipmentList,
+                        currentFirefighterId = currentFirefighterId,
+                        onFirefighterStatusChange = onUpdateFirefighterStatus,
+                        onAssignFirefighter = onAssignFirefighter,
+                        onRemoveFirefighter = onRemoveFirefighter,
+                        onUpdateShiftStatus = onUpdateShiftStatus,
+                        onViewAllSchedulesClick = { selectedTab = ShiftTab.SCHEDULE },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
                 ShiftTab.SCHEDULE -> {
                     // Shift Schedules Content
                     Column(modifier = Modifier.fillMaxSize()) {

@@ -59,11 +59,10 @@ class AppGraph(
     val firebaseEnabled: Boolean = FirebaseAvailability.isConfigured(context)
 
     private val localMemberRosterRepository = PersistentMemberRosterRepository(database)
-    private val memberFunctionsClient = FirebaseMemberFunctionsClient()
     val memberRosterRepository: MemberRosterRepository = if (firebaseEnabled) {
         FirebaseMemberRosterRepository(
             database = database,
-            functionsClient = memberFunctionsClient
+            functionsClient = FirebaseMemberFunctionsClient()
         )
     } else {
         localMemberRosterRepository
